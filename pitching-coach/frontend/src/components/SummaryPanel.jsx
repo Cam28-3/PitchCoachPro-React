@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import {
   TARGET_ZONE_LAYOUT_5X5,
   TARGET_ZONE_LAYOUT_BASIC,
@@ -6,6 +6,7 @@ import {
   STRIKE_ZONES_BASIC,
   PITCH_TYPE_COLORS,
 } from '../constants';
+import { generateFeedback } from '../utils/generateFeedback';
 
 function getHeatmapColor(count, maxCount) {
   if (count === 0) return '#1e293b';
@@ -16,8 +17,15 @@ function getHeatmapColor(count, maxCount) {
   return '#1e40af';
 }
 
+const FEEDBACK_COLORS = {
+  positive: { bg: '#052e16', border: '#16a34a', text: '#86efac', label: '#22c55e' },
+  warning:  { bg: '#2d1515', border: '#dc2626', text: '#fca5a5', label: '#ef4444' },
+  tip:      { bg: '#172554', border: '#3b82f6', text: '#bfdbfe', label: '#60a5fa' },
+};
+
 export default function SummaryPanel({ pitches, currentGridMode, selectedPitcherName }) {
   const panelRef = useRef(null);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const totalPitches = pitches.length;
   const totalScore = pitches.reduce((s, p) => s + (p.score || 0), 0);
@@ -222,10 +230,48 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
         )}
       </div>
 
+      {totalPitches >= 3 && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            className="btn btn-secondary"
+            style={{ width: '100%', fontSize: 12 }}
+            onClick={() => setShowFeedback(v => !v)}
+          >
+            {showFeedback ? 'Hide Coaching Feedback' : 'Get Coaching Feedback'}
+          </button>
+
+          {showFeedback && (
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {generateFeedback(pitches, currentGridMode).map((item, i) => {
+                const colors = FEEDBACK_COLORS[item.type];
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      background: colors.bg,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 6,
+                      padding: '7px 10px',
+                    }}
+                  >
+                    <div style={{ fontSize: 10, fontWeight: 700, color: colors.label, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                      {item.category}
+                    </div>
+                    <div style={{ fontSize: 12, color: colors.text, lineHeight: 1.4 }}>
+                      {item.message}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       {totalPitches > 0 && (
         <button
           className="btn btn-secondary"
-          style={{ width: '100%', marginTop: 12, fontSize: 12 }}
+          style={{ width: '100%', marginTop: 8, fontSize: 12 }}
           onClick={handleExportPDF}
         >
           Export PDF

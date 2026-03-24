@@ -267,14 +267,6 @@ export default function App() {
             ))}
           </div>
 
-          <div className="panel">
-            <TargetGrid
-              currentGridMode={currentGridMode}
-              selectedTargetZoneIndex={selectedTargetZoneIndex}
-              onSelectZone={setSelectedTargetZoneIndex}
-            />
-          </div>
-
           {!isViewingPastSession && (
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-success" style={{ flex: 1 }} onClick={saveSession} disabled={isSaving || pitches.length === 0}>
@@ -289,6 +281,15 @@ export default function App() {
 
         {/* Right panel */}
         <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {!isViewingPastSession && (
+            <div className="panel">
+              <TargetGrid
+                currentGridMode={currentGridMode}
+                selectedTargetZoneIndex={selectedTargetZoneIndex}
+                onSelectZone={setSelectedTargetZoneIndex}
+              />
+            </div>
+          )}
           <PitchControls
             currentGridMode={currentGridMode}
             onGridModeChange={mode => { setCurrentGridMode(mode); setSelectedTargetZoneIndex(null); }}

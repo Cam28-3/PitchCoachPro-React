@@ -28,7 +28,7 @@ export default function Sidebar({
       {/* Header */}
       <div className="panel" style={{ textAlign: 'center' }}>
         <div style={{ fontSize: 24, marginBottom: 4 }}>⚾</div>
-        <h1 style={{ fontSize: 18, fontWeight: 800, color: '#e2e8f0', margin: 0 }}>PitchPro Coach</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: '#e2e8f0', margin: 0 }}>PitchCoachPro</h1>
         <div
           style={{
             display: 'inline-flex',
