@@ -68,6 +68,20 @@ router.post('/:id/pitches', async (req, res) => {
   }
 });
 
+// DELETE /api/pitchers/:id/pitches/:pitchId
+router.delete('/:id/pitches/:pitchId', async (req, res) => {
+  if (!getIsConfigured()) return res.json({ deleted: 1 });
+  try {
+    await getDb()
+      .collection(`${getBasePath()}/pitchers/${req.params.id}/pitches`)
+      .doc(req.params.pitchId)
+      .delete();
+    res.json({ deleted: 1 });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // DELETE /api/pitchers/:id/pitches
 router.delete('/:id/pitches', async (req, res) => {
   if (!getIsConfigured()) return res.json({ deleted: 0 });
