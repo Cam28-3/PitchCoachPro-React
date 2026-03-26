@@ -166,6 +166,18 @@ export default function App() {
     }
   }, [selectedPitcherId, selectedPitcherName, pitches, currentSessionNotes, currentGridMode, isOnlineMode]);
 
+  const undoLastPitch = useCallback(async () => {
+    if (pitches.length === 0) return;
+    const last = pitches[pitches.length - 1];
+    const updated = pitches.slice(0, -1);
+    setPitches(updated);
+    if (!isOnlineMode && selectedPitcherId) {
+      setLocalData(APP_ID, `pitches_${selectedPitcherId}`, updated);
+    } else if (selectedPitcherId) {
+      api.deletePitch(selectedPitcherId, last.id).catch(console.error);
+    }
+  }, [pitches, isOnlineMode, selectedPitcherId]);
+
   const clearPitches = useCallback(() => {
     setPitches([]);
     setCurrentSessionNotes([]);
@@ -269,11 +281,14 @@ export default function App() {
 
           {!isViewingPastSession && (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-success" style={{ flex: 1 }} onClick={saveSession} disabled={isSaving || pitches.length === 0}>
+              <button className="btn btn-success" style={{ flex: 2 }} onClick={saveSession} disabled={isSaving || pitches.length === 0}>
                 {isSaving ? 'Saving...' : 'Archive Session'}
               </button>
+              <button className="btn btn-secondary" style={{ flex: 1 }} onClick={undoLastPitch} disabled={pitches.length === 0}>
+                Undo
+              </button>
               <button className="btn btn-danger" style={{ flex: 1 }} onClick={clearPitches} disabled={pitches.length === 0}>
-                Reset Session
+                Reset
               </button>
             </div>
           )}

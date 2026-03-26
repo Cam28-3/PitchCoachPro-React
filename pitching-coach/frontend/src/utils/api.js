@@ -32,6 +32,13 @@ export async function addPitch(pitcherId, pitch) {
   return res.json();
 }
 
+export async function deletePitch(pitcherId, pitchId) {
+  const res = await fetch(`${BASE}/pitchers/${pitcherId}/pitches/${pitchId}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error('Failed to delete pitch');
+}
+
 export async function clearPitches(pitcherId) {
   const res = await fetch(`${BASE}/pitchers/${pitcherId}/pitches`, {
     method: 'DELETE',
