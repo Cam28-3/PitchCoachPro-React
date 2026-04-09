@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as api from './utils/api';
 import { getLocalData, setLocalData } from './utils/storage';
-import { calculateScore, getLandedZoneId } from './utils/scoring';
+import { calculateScore, calculateExactScore, getLandedZoneId } from './utils/scoring';
 
 import Modal from './components/Modal';
 import Sidebar from './components/Sidebar';
@@ -28,6 +28,8 @@ export default function App() {
   const [isViewingPastSession, setIsViewingPastSession] = useState(false);
 
   const [selectedTargetZoneIndex, setSelectedTargetZoneIndex] = useState(null);
+  const [exactTarget, setExactTarget] = useState(null);
+  const [isSettingTarget, setIsSettingTarget] = useState(false);
   const [currentGridMode, setCurrentGridMode] = useState('precision');
   const [pitchType, setPitchType] = useState('fastball');
   const [pitchSpeed, setPitchSpeed] = useState(85);
@@ -87,9 +89,19 @@ export default function App() {
   }, []);
 
   const handlePitchClick = useCallback(async (x, y, containerWidth, containerHeight) => {
+    // Target-setting mode: place the crosshair, don't record a pitch
+    if (isSettingTarget) {
+      setExactTarget({ x, y });
+      setIsSettingTarget(false);
+      setSelectedTargetZoneIndex(null);
+      return;
+    }
+
     if (!selectedPitcherId) { setModal('Please select a pitcher first.'); return; }
 
-    const score = calculateScore(x, y, selectedTargetZoneIndex, currentGridMode, containerWidth, containerHeight);
+    const score = exactTarget
+      ? calculateExactScore(x, y, exactTarget.x, exactTarget.y, currentGridMode, containerWidth)
+      : calculateScore(x, y, selectedTargetZoneIndex, currentGridMode, containerWidth, containerHeight);
     const landedZoneId = getLandedZoneId(x, y, currentGridMode, containerWidth, containerHeight);
 
     const newPitch = {
@@ -99,7 +111,8 @@ export default function App() {
       speed: pitchSpeed,
       score,
       landedZoneId,
-      targetZoneId: selectedTargetZoneIndex,
+      targetZoneId: exactTarget ? null : selectedTargetZoneIndex,
+      exactTarget: exactTarget || null,
       gridMode: currentGridMode,
       timestamp: Date.now(),
     };
@@ -116,7 +129,7 @@ export default function App() {
     } catch (e) {
       console.error('Error saving pitch', e);
     }
-  }, [selectedPitcherId, selectedTargetZoneIndex, currentGridMode, pitchType, pitchSpeed, pitches, isOnlineMode]);
+  }, [isSettingTarget, exactTarget, selectedPitcherId, selectedTargetZoneIndex, currentGridMode, pitchType, pitchSpeed, pitches, isOnlineMode]);
 
   const saveSession = useCallback(async () => {
     if (!selectedPitcherId) { setModal('Please select a pitcher first.'); return; }
@@ -261,6 +274,8 @@ export default function App() {
               currentGridMode={currentGridMode}
               isViewingPastSession={isViewingPastSession}
               selectedTargetZoneIndex={selectedTargetZoneIndex}
+              exactTarget={exactTarget}
+              isSettingTarget={isSettingTarget}
               onPitchClick={handlePitchClick}
             />
           </div>
@@ -297,7 +312,7 @@ export default function App() {
         {/* Right panel */}
         <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
           {!isViewingPastSession && (
-            <div className="panel">
+            <div className="panel" style={{ opacity: exactTarget ? 0.4 : 1, pointerEvents: exactTarget ? 'none' : 'auto' }}>
               <TargetGrid
                 currentGridMode={currentGridMode}
                 selectedTargetZoneIndex={selectedTargetZoneIndex}
@@ -312,6 +327,10 @@ export default function App() {
             onPitchTypeChange={setPitchType}
             pitchSpeed={pitchSpeed}
             onPitchSpeedChange={setPitchSpeed}
+            exactTarget={exactTarget}
+            isSettingTarget={isSettingTarget}
+            onSetTargetMode={() => setIsSettingTarget(prev => !prev)}
+            onClearExactTarget={() => { setExactTarget(null); setIsSettingTarget(false); }}
           />
           <CoachingNotes notes={currentSessionNotes} onAddNote={addNote} />
           <SummaryPanel pitches={pitches} currentGridMode={currentGridMode} selectedPitcherName={selectedPitcherName} />

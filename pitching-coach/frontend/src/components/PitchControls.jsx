@@ -7,6 +7,10 @@ export default function PitchControls({
   onPitchTypeChange,
   pitchSpeed,
   onPitchSpeedChange,
+  exactTarget,
+  isSettingTarget,
+  onSetTargetMode,
+  onClearExactTarget,
 }) {
   return (
     <div className="panel" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -60,22 +64,79 @@ export default function PitchControls({
         </div>
       </div>
 
+      {/* Exact Target */}
+      <div>
+        <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6 }}>
+          Exact Target
+        </label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            className="btn"
+            style={{
+              flex: 1,
+              fontSize: 12,
+              padding: '6px 10px',
+              background: isSettingTarget ? '#d97706' : exactTarget ? '#92400e' : '#1e293b',
+              color: isSettingTarget || exactTarget ? '#fff' : '#94a3b8',
+              border: `2px solid ${isSettingTarget ? '#f59e0b' : exactTarget ? '#d97706' : '#334155'}`,
+            }}
+            onClick={onSetTargetMode}
+          >
+            {isSettingTarget ? 'Click canvas...' : exactTarget ? 'Move Target' : 'Set Target'}
+          </button>
+          {exactTarget && (
+            <button
+              className="btn btn-secondary"
+              style={{ fontSize: 12, padding: '6px 10px' }}
+              onClick={onClearExactTarget}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        {exactTarget && (
+          <p style={{ fontSize: 10, color: '#f59e0b', marginTop: 4 }}>
+            Exact target active — zone grid disabled
+          </p>
+        )}
+      </div>
+
       {/* Speed */}
       <div>
         <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 6 }}>
-          Speed:{' '}
-          <span style={{ color: '#e2e8f0', fontWeight: 700 }}>{pitchSpeed} mph</span>
+          Speed
         </label>
-        <input
-          type="range"
-          min={40}
-          max={105}
-          value={pitchSpeed}
-          onChange={e => onPitchSpeedChange(Number(e.target.value))}
-        />
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#475569', marginTop: 2 }}>
-          <span>40</span>
-          <span>105</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="range"
+            min={40}
+            max={105}
+            value={pitchSpeed}
+            style={{ flex: 1 }}
+            onChange={e => onPitchSpeedChange(Number(e.target.value))}
+          />
+          <input
+            type="number"
+            min={40}
+            max={105}
+            value={pitchSpeed}
+            onChange={e => {
+              const val = Math.max(40, Math.min(105, Number(e.target.value)));
+              if (!isNaN(val)) onPitchSpeedChange(val);
+            }}
+            style={{
+              width: 58,
+              padding: '4px 6px',
+              background: '#0f172a',
+              border: '1px solid #334155',
+              borderRadius: 6,
+              color: '#e2e8f0',
+              fontSize: 13,
+              fontWeight: 700,
+              textAlign: 'center',
+            }}
+          />
+          <span style={{ fontSize: 12, color: '#64748b' }}>mph</span>
         </div>
       </div>
     </div>

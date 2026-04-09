@@ -7,10 +7,24 @@ import {
   STRIKE_ZONES_BASIC,
   BASEBALL_DIAMETER_INCHES,
   STRIKE_ZONE_WIDTH_INCHES,
-  PITCH_TYPE_COLORS,
 } from '../constants';
 
-function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTargetZoneIndex) {
+function drawCrosshair(ctx, x, y, color = '#f59e0b') {
+  const size = 14;
+  const gap  = 4;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(x - size, y); ctx.lineTo(x - gap, y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + gap,  y); ctx.lineTo(x + size, y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y - size); ctx.lineTo(x, y - gap); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y + gap);  ctx.lineTo(x, y + size); ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y, gap, 0, Math.PI * 2);
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width;
@@ -44,10 +58,8 @@ function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTarge
   ctx.strokeStyle = strikeColor;
   ctx.lineWidth = 4;
   if (currentGridMode === 'precision') {
-    // Inner 3x3 (cols 1-3, rows 1-3 in 0-index)
     ctx.strokeRect(cellW, cellH, cellW * 3, cellH * 3);
   } else {
-    // Inner 2x2 (cols 1-2, rows 1-2 in 0-index)
     ctx.strokeRect(cellW, cellH, cellW * 2, cellH * 2);
   }
 
@@ -81,21 +93,15 @@ function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTarge
     }
   }
 
-  // Highlight selected target zone
-  if (selectedTargetZoneIndex !== null && selectedTargetZoneIndex !== undefined) {
+  // Highlight selected zone target (only when no exact target is active)
+  if (!exactTarget && selectedTargetZoneIndex !== null && selectedTargetZoneIndex !== undefined) {
     let selCol = -1, selRow = -1;
     if (currentGridMode === 'precision') {
       const idx = TARGET_ZONE_LAYOUT_5X5.indexOf(selectedTargetZoneIndex);
-      if (idx !== -1) {
-        selCol = idx % cols;
-        selRow = Math.floor(idx / cols);
-      }
+      if (idx !== -1) { selCol = idx % cols; selRow = Math.floor(idx / cols); }
     } else {
       const entry = TARGET_ZONE_LAYOUT_BASIC.find(z => z.id === selectedTargetZoneIndex);
-      if (entry) {
-        selCol = entry.col - 1;
-        selRow = entry.row - 1;
-      }
+      if (entry) { selCol = entry.col - 1; selRow = entry.row - 1; }
     }
     if (selCol !== -1) {
       ctx.strokeStyle = '#d97706';
@@ -104,6 +110,38 @@ function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTarge
       ctx.fillStyle = 'rgba(217,119,6,0.15)';
       ctx.fillRect(selCol * cellW + 2, selRow * cellH + 2, cellW - 4, cellH - 4);
     }
+  }
+
+  // Draw exact target crosshair
+  if (exactTarget) {
+    // Pulse ring
+    ctx.beginPath();
+    ctx.arc(exactTarget.x, exactTarget.y, 20, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(245,158,11,0.3)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    drawCrosshair(ctx, exactTarget.x, exactTarget.y, '#f59e0b');
+  }
+
+  // "Click to place target" overlay when in setting mode
+  if (isSettingTarget) {
+    ctx.fillStyle = 'rgba(245,158,11,0.07)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 4]);
+    ctx.strokeRect(2, 2, W - 4, H - 4);
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(15,23,42,0.75)';
+    const labelW = 220, labelH = 28, labelX = W / 2 - labelW / 2, labelY = 10;
+    ctx.beginPath();
+    ctx.roundRect(labelX, labelY, labelW, labelH, 6);
+    ctx.fill();
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = 'bold 12px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Click to place exact target', W / 2, labelY + labelH / 2);
   }
 
   // Draw center dot
@@ -118,6 +156,8 @@ export default function StrikeZone({
   currentGridMode,
   isViewingPastSession,
   selectedTargetZoneIndex,
+  exactTarget,
+  isSettingTarget,
   onPitchClick,
 }) {
   const containerRef = useRef(null);
@@ -133,9 +173,9 @@ export default function StrikeZone({
     if (canvasRef.current) {
       canvasRef.current.width = w;
       canvasRef.current.height = h;
-      drawCanvas(canvasRef.current, currentGridMode, isViewingPastSession, selectedTargetZoneIndex);
+      drawCanvas(canvasRef.current, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget);
     }
-  }, [currentGridMode, isViewingPastSession, selectedTargetZoneIndex]);
+  }, [currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget]);
 
   useEffect(() => {
     updateSize();
@@ -148,9 +188,9 @@ export default function StrikeZone({
     if (canvasRef.current && dimensions.width > 0) {
       canvasRef.current.width = dimensions.width;
       canvasRef.current.height = dimensions.height;
-      drawCanvas(canvasRef.current, currentGridMode, isViewingPastSession, selectedTargetZoneIndex);
+      drawCanvas(canvasRef.current, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget);
     }
-  }, [dimensions, currentGridMode, isViewingPastSession, selectedTargetZoneIndex]);
+  }, [dimensions, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget]);
 
   const handleClick = useCallback(
     e => {
@@ -163,7 +203,6 @@ export default function StrikeZone({
     [isViewingPastSession, onPitchClick, dimensions]
   );
 
-  // Compute dot size based on speed
   const getDotSize = useCallback(
     pitch => {
       if (dimensions.width === 0) return 12;
@@ -185,11 +224,13 @@ export default function StrikeZone({
     return 'ball';
   };
 
+  const cursor = isSettingTarget ? 'crosshair' : isViewingPastSession ? 'default' : 'pointer';
+
   return (
     <div
       ref={containerRef}
       className="strike-zone-container"
-      style={{ height: dimensions.height || 'auto' }}
+      style={{ height: dimensions.height || 'auto', cursor }}
       onClick={handleClick}
     >
       <canvas ref={canvasRef} className="strike-zone-canvas" />

@@ -3,7 +3,27 @@ import {
   TARGET_ZONE_LAYOUT_BASIC,
   STRIKE_ZONES_5X5,
   STRIKE_ZONES_BASIC,
+  BASEBALL_DIAMETER_INCHES,
+  STRIKE_ZONE_WIDTH_INCHES,
 } from '../constants';
+
+// Scoring thresholds based on real baseball dimensions:
+//   Perfect = within 1 baseball diameter of target
+//   Strike  = within 3 baseball diameters of target
+const PERFECT_RADII = 1.0;
+const STRIKE_RADII  = 3.0;
+
+export function calculateExactScore(x, y, targetX, targetY, currentGridMode, containerWidth) {
+  const strikeZoneCols = currentGridMode === 'precision' ? 3 : 2;
+  const totalCols      = currentGridMode === 'precision' ? 5 : 4;
+  const strikeZoneWidthPx = (strikeZoneCols / totalCols) * containerWidth;
+  const baseballPx = (BASEBALL_DIAMETER_INCHES / STRIKE_ZONE_WIDTH_INCHES) * strikeZoneWidthPx;
+
+  const dist = Math.sqrt((x - targetX) ** 2 + (y - targetY) ** 2);
+  if (dist <= baseballPx * PERFECT_RADII) return 10;
+  if (dist <= baseballPx * STRIKE_RADII)  return 5;
+  return 0;
+}
 
 export function getLandedZoneId(x, y, currentGridMode, containerWidth, containerHeight) {
   const cols = currentGridMode === 'precision' ? 5 : 4;
