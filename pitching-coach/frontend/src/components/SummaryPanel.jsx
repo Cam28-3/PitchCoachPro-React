@@ -6,6 +6,7 @@ import {
   STRIKE_ZONES_BASIC,
   PITCH_TYPE_COLORS,
   STRIKE_ZONE_WIDTH_INCHES,
+  CANVAS_ASPECT_RATIO,
 } from '../constants';
 import { generateFeedback } from '../utils/generateFeedback';
 
@@ -27,6 +28,7 @@ const FEEDBACK_COLORS = {
 export default function SummaryPanel({ pitches, currentGridMode, selectedPitcherName, onHighlightPitch, highlightedPitchId }) {
   const panelRef = useRef(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [strikeZoneHeight, setStrikeZoneHeight] = useState(24);
 
   const totalPitches = pitches.length;
   const totalScore = pitches.reduce((s, p) => s + (p.score || 0), 0);
@@ -45,9 +47,11 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
     const strikeZoneCols = p.gridMode === 'precision' ? 3 : 2;
     const totalCols = p.gridMode === 'precision' ? 5 : 4;
     const strikeZoneWidthPx = (strikeZoneCols / totalCols) * p.containerWidth;
-    const pxPerInch = strikeZoneWidthPx / STRIKE_ZONE_WIDTH_INCHES;
-    const dx = (p.x - p.exactTarget.x) / pxPerInch;
-    const dy = (p.y - p.exactTarget.y) / pxPerInch;
+    const pxPerInchH = strikeZoneWidthPx / STRIKE_ZONE_WIDTH_INCHES;
+    const strikeZoneHeightPx = (strikeZoneCols / totalCols) * p.containerWidth * CANVAS_ASPECT_RATIO;
+    const pxPerInchV = strikeZoneHeightPx / strikeZoneHeight;
+    const dx = (p.x - p.exactTarget.x) / pxPerInchH;
+    const dy = (p.y - p.exactTarget.y) / pxPerInchV;
     return { dx, dy, resultant: Math.sqrt(dx ** 2 + dy ** 2) };
   }
 
@@ -106,7 +110,30 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
   return (
     <div className="panel" id="summaryPanel">
       <div ref={panelRef}>
-        <p className="section-title">Session Summary</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <p className="section-title" style={{ margin: 0 }}>Session Summary</p>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#64748b' }}>
+            SZ Height
+            <input
+              type="number"
+              min={10}
+              max={36}
+              value={strikeZoneHeight}
+              onChange={e => setStrikeZoneHeight(Math.max(10, Math.min(36, Number(e.target.value))))}
+              style={{
+                width: 42,
+                background: '#0f172a',
+                border: '1px solid #334155',
+                borderRadius: 4,
+                color: '#e2e8f0',
+                fontSize: 11,
+                padding: '2px 4px',
+                textAlign: 'center',
+              }}
+            />
+            <span style={{ color: '#475569' }}>"</span>
+          </label>
+        </div>
 
         {selectedPitcherName && (
           <p style={{ fontSize: 13, color: '#6366f1', fontWeight: 600, marginBottom: 10 }}>
@@ -220,7 +247,7 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
         {/* Average Miss Stats */}
         {missStats && (
           <div style={{ marginBottom: 12 }}>
-            <p style={{ fontSize: 10, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
               Avg Miss ({missStats.count} pitch{missStats.count !== 1 ? 'es' : ''} w/ exact target)
             </p>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
