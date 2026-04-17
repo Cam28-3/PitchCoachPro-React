@@ -24,7 +24,7 @@ function drawCrosshair(ctx, x, y, color = '#f59e0b') {
   ctx.stroke();
 }
 
-function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget) {
+function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget, focusedZoneId) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const W = canvas.width;
@@ -93,7 +93,7 @@ function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTarge
     }
   }
 
-  // Highlight selected zone target (only when no exact target is active)
+  // Highlight the live selected zone (only when no exact target is active)
   if (!exactTarget && selectedTargetZoneIndex !== null && selectedTargetZoneIndex !== undefined) {
     let selCol = -1, selRow = -1;
     if (currentGridMode === 'precision') {
@@ -112,9 +112,29 @@ function drawCanvas(canvas, currentGridMode, isViewingPastSession, selectedTarge
     }
   }
 
-  // Draw exact target crosshair
+  // Highlight the focused pitch's zone target
+  if (focusedZoneId != null) {
+    let fCol = -1, fRow = -1;
+    if (currentGridMode === 'precision') {
+      const idx = TARGET_ZONE_LAYOUT_5X5.indexOf(focusedZoneId);
+      if (idx !== -1) { fCol = idx % cols; fRow = Math.floor(idx / cols); }
+    } else {
+      const entry = TARGET_ZONE_LAYOUT_BASIC.find(z => z.id === focusedZoneId);
+      if (entry) { fCol = entry.col - 1; fRow = entry.row - 1; }
+    }
+    if (fCol !== -1) {
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([5, 3]);
+      ctx.strokeRect(fCol * cellW + 2, fRow * cellH + 2, cellW - 4, cellH - 4);
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(226,232,240,0.12)';
+      ctx.fillRect(fCol * cellW + 2, fRow * cellH + 2, cellW - 4, cellH - 4);
+    }
+  }
+
+  // Draw live exact target crosshair
   if (exactTarget) {
-    // Pulse ring
     ctx.beginPath();
     ctx.arc(exactTarget.x, exactTarget.y, 20, 0, Math.PI * 2);
     ctx.strokeStyle = 'rgba(245,158,11,0.3)';
@@ -166,6 +186,31 @@ export default function StrikeZone({
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [hoveredPitch, setHoveredPitch] = useState(null);
 
+  const highlightedPitch = highlightedPitchId != null
+    ? pitches.find((p, i) => (p.id ?? i) === highlightedPitchId) ?? null
+    : null;
+
+  // Focused zone target (for zone-based targeting)
+  const focusedZoneId = highlightedPitch?.targetZoneId ?? null;
+
+  // Focused exact target, scaled to current container dimensions
+  const focusedExactTarget = (() => {
+    if (!highlightedPitch?.exactTarget || !highlightedPitch?.containerWidth || dimensions.width === 0) return null;
+    const scale = dimensions.width / highlightedPitch.containerWidth;
+    return {
+      x: highlightedPitch.exactTarget.x * scale,
+      y: highlightedPitch.exactTarget.y * scale,
+    };
+  })();
+
+  const hasHighlight = highlightedPitchId != null;
+
+  const redrawCanvas = useCallback(() => {
+    if (canvasRef.current && dimensions.width > 0) {
+      drawCanvas(canvasRef.current, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget, focusedZoneId);
+    }
+  }, [dimensions, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget, focusedZoneId]);
+
   const updateSize = useCallback(() => {
     if (!containerRef.current) return;
     const w = containerRef.current.clientWidth;
@@ -174,9 +219,9 @@ export default function StrikeZone({
     if (canvasRef.current) {
       canvasRef.current.width = w;
       canvasRef.current.height = h;
-      drawCanvas(canvasRef.current, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget);
+      drawCanvas(canvasRef.current, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget, focusedZoneId);
     }
-  }, [currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget]);
+  }, [currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget, focusedZoneId]);
 
   useEffect(() => {
     updateSize();
@@ -186,12 +231,8 @@ export default function StrikeZone({
   }, [updateSize]);
 
   useEffect(() => {
-    if (canvasRef.current && dimensions.width > 0) {
-      canvasRef.current.width = dimensions.width;
-      canvasRef.current.height = dimensions.height;
-      drawCanvas(canvasRef.current, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget);
-    }
-  }, [dimensions, currentGridMode, isViewingPastSession, selectedTargetZoneIndex, exactTarget, isSettingTarget]);
+    redrawCanvas();
+  }, [redrawCanvas]);
 
   const handleClick = useCallback(
     e => {
@@ -243,7 +284,6 @@ export default function StrikeZone({
           const isLast = i === pitches.length - 1;
           const pctX = (pitch.x / dimensions.width) * 100;
           const pctY = (pitch.y / dimensions.height) * 100;
-
           const isHighlighted = highlightedPitchId != null && (pitch.id === highlightedPitchId || i === highlightedPitchId);
 
           return (
@@ -255,8 +295,10 @@ export default function StrikeZone({
                 top: `${pctY}%`,
                 width: dotSize,
                 height: dotSize,
+                opacity: hasHighlight && !isHighlighted ? 0.15 : 1,
                 boxShadow: isHighlighted ? '0 0 0 3px #fff, 0 0 0 5px #f59e0b' : undefined,
                 zIndex: isHighlighted ? 20 : undefined,
+                transition: 'opacity 0.2s',
               }}
               onMouseEnter={() => setHoveredPitch(i)}
               onMouseLeave={() => setHoveredPitch(null)}
@@ -269,6 +311,22 @@ export default function StrikeZone({
             </div>
           );
         })}
+
+      {/* Focused pitch exact target crosshair overlay */}
+      {focusedExactTarget && (
+        <svg
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 15 }}
+        >
+          {/* Pulse ring */}
+          <circle cx={focusedExactTarget.x} cy={focusedExactTarget.y} r={20} fill="none" stroke="rgba(226,232,240,0.25)" strokeWidth={1.5} />
+          {/* Crosshair arms */}
+          <line x1={focusedExactTarget.x - 14} y1={focusedExactTarget.y} x2={focusedExactTarget.x - 4} y2={focusedExactTarget.y} stroke="#e2e8f0" strokeWidth={2.5} />
+          <line x1={focusedExactTarget.x + 4}  y1={focusedExactTarget.y} x2={focusedExactTarget.x + 14} y2={focusedExactTarget.y} stroke="#e2e8f0" strokeWidth={2.5} />
+          <line x1={focusedExactTarget.x} y1={focusedExactTarget.y - 14} x2={focusedExactTarget.x} y2={focusedExactTarget.y - 4} stroke="#e2e8f0" strokeWidth={2.5} />
+          <line x1={focusedExactTarget.x} y1={focusedExactTarget.y + 4}  x2={focusedExactTarget.x} y2={focusedExactTarget.y + 14} stroke="#e2e8f0" strokeWidth={2.5} />
+          <circle cx={focusedExactTarget.x} cy={focusedExactTarget.y} r={4} fill="none" stroke="#e2e8f0" strokeWidth={2} />
+        </svg>
+      )}
     </div>
   );
 }
