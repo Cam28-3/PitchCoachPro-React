@@ -5,6 +5,7 @@ import {
   STRIKE_ZONES_5X5,
   STRIKE_ZONES_BASIC,
   PITCH_TYPE_COLORS,
+  STRIKE_ZONE_WIDTH_INCHES,
 } from '../constants';
 import { generateFeedback } from '../utils/generateFeedback';
 
@@ -23,7 +24,7 @@ const FEEDBACK_COLORS = {
   tip:      { bg: '#172554', border: '#3b82f6', text: '#bfdbfe', label: '#60a5fa' },
 };
 
-export default function SummaryPanel({ pitches, currentGridMode, selectedPitcherName }) {
+export default function SummaryPanel({ pitches, currentGridMode, selectedPitcherName, onHighlightPitch, highlightedPitchId }) {
   const panelRef = useRef(null);
   const [showFeedback, setShowFeedback] = useState(false);
 
@@ -36,6 +37,35 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
   const perfectCount = pitches.filter(p => p.score === 10).length;
   const strikeCount = pitches.filter(p => p.score === 5).length;
   const ballCount = pitches.filter(p => p.score === 0).length;
+
+  // Average miss in inches — only for pitches with an exact target and recorded container width
+  const exactPitches = pitches.filter(p => p.exactTarget && p.containerWidth > 0);
+
+  function getMissInches(p) {
+    const strikeZoneCols = p.gridMode === 'precision' ? 3 : 2;
+    const totalCols = p.gridMode === 'precision' ? 5 : 4;
+    const strikeZoneWidthPx = (strikeZoneCols / totalCols) * p.containerWidth;
+    const pxPerInch = strikeZoneWidthPx / STRIKE_ZONE_WIDTH_INCHES;
+    const dx = (p.x - p.exactTarget.x) / pxPerInch;
+    const dy = (p.y - p.exactTarget.y) / pxPerInch;
+    return { dx, dy, resultant: Math.sqrt(dx ** 2 + dy ** 2) };
+  }
+
+  let missStats = null;
+  if (exactPitches.length > 0) {
+    const misses = exactPitches.map(getMissInches);
+    const avgH = misses.reduce((s, m) => s + m.dx, 0) / misses.length;
+    const avgV = misses.reduce((s, m) => s + m.dy, 0) / misses.length;
+    missStats = {
+      horizontal: avgH,
+      vertical: avgV,
+      resultant: Math.sqrt(avgH ** 2 + avgV ** 2),
+      count: exactPitches.length,
+    };
+  }
+
+  const SCORE_LABEL = { 10: 'Perfect', 5: 'Strike', 0: 'Ball' };
+  const SCORE_COLOR = { 10: '#fbbf24', 5: '#facc15', 0: '#60a5fa' };
 
   // Pitch type breakdown
   const byType = {};
@@ -183,6 +213,112 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Average Miss Stats */}
+        {missStats && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 10, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Avg Miss ({missStats.count} pitch{missStats.count !== 1 ? 'es' : ''} w/ exact target)
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+              {[
+                {
+                  label: 'Horizontal',
+                  value: Math.abs(missStats.horizontal).toFixed(1) + '"',
+                  sub: missStats.horizontal > 0.05 ? 'Right' : missStats.horizontal < -0.05 ? 'Left' : 'On target',
+                  color: '#60a5fa',
+                },
+                {
+                  label: 'Vertical',
+                  value: Math.abs(missStats.vertical).toFixed(1) + '"',
+                  sub: missStats.vertical > 0.05 ? 'Low' : missStats.vertical < -0.05 ? 'High' : 'On target',
+                  color: '#a78bfa',
+                },
+                {
+                  label: 'Resultant',
+                  value: missStats.resultant.toFixed(1) + '"',
+                  sub: 'Total',
+                  color: '#34d399',
+                },
+              ].map(({ label, value, sub, color }) => (
+                <div
+                  key={label}
+                  style={{
+                    background: '#0f172a',
+                    border: '1px solid #334155',
+                    borderRadius: 8,
+                    padding: '8px 6px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: 16, fontWeight: 700, color }}>{value}</div>
+                  <div style={{ fontSize: 9, color: '#94a3b8', marginTop: 1 }}>{sub}</div>
+                  <div style={{ fontSize: 9, color: '#475569', marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Per-pitch log */}
+        {totalPitches > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 10, color: '#64748b', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Pitch Log
+            </p>
+            <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {pitches.map((p, i) => {
+                const miss = p.exactTarget && p.containerWidth > 0 ? getMissInches(p) : null;
+                const scoreColor = SCORE_COLOR[p.score] ?? '#94a3b8';
+                const scoreLabel = SCORE_LABEL[p.score] ?? '—';
+                return (
+                  <div
+                    key={p.id || i}
+                    onClick={() => onHighlightPitch?.(highlightedPitchId === (p.id ?? i) ? null : (p.id ?? i))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: highlightedPitchId === (p.id ?? i) ? '#1c2a1a' : '#0f172a',
+                      border: highlightedPitchId === (p.id ?? i) ? '1px solid #f59e0b' : '1px solid #1e293b',
+                      borderRadius: 6,
+                      padding: '5px 8px',
+                      fontSize: 11,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {/* Pitch number */}
+                    <span style={{ color: '#475569', width: 18, flexShrink: 0, textAlign: 'right' }}>
+                      {i + 1}
+                    </span>
+                    {/* Type dot */}
+                    <div style={{ width: 7, height: 7, borderRadius: '50%', background: PITCH_TYPE_COLORS[p.type] || '#94a3b8', flexShrink: 0 }} />
+                    {/* Type + speed */}
+                    <span style={{ color: '#cbd5e1', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {p.type ? p.type.charAt(0).toUpperCase() + p.type.slice(1) : '—'} {p.speed ? `${p.speed} mph` : ''}
+                    </span>
+                    {/* Outcome */}
+                    <span style={{ color: scoreColor, fontWeight: 700, flexShrink: 0, width: 44, textAlign: 'right' }}>
+                      {scoreLabel}
+                    </span>
+                    {/* Miss stats */}
+                    {miss ? (
+                      <span style={{ color: '#64748b', flexShrink: 0, fontSize: 10, textAlign: 'right', minWidth: 110 }}>
+                        <span style={{ color: '#60a5fa' }}>{Math.abs(miss.dx).toFixed(1)}"</span>
+                        <span style={{ color: '#475569' }}>{miss.dx > 0.05 ? 'R' : miss.dx < -0.05 ? 'L' : '·'} </span>
+                        <span style={{ color: '#a78bfa' }}>{Math.abs(miss.dy).toFixed(1)}"</span>
+                        <span style={{ color: '#475569' }}>{miss.dy > 0.05 ? 'Lo' : miss.dy < -0.05 ? 'Hi' : '·'} </span>
+                        <span style={{ color: '#34d399' }}>{miss.resultant.toFixed(1)}"</span>
+                      </span>
+                    ) : (
+                      <span style={{ color: '#334155', flexShrink: 0, fontSize: 10, minWidth: 110, textAlign: 'right' }}>no exact target</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

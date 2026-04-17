@@ -36,6 +36,7 @@ export default function App() {
 
   const [modal, setModal] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [highlightedPitchId, setHighlightedPitchId] = useState(null);
 
   // Load pitchers on mount
   useEffect(() => {
@@ -114,6 +115,7 @@ export default function App() {
       targetZoneId: exactTarget ? null : selectedTargetZoneIndex,
       exactTarget: exactTarget || null,
       gridMode: currentGridMode,
+      containerWidth,
       timestamp: Date.now(),
     };
 
@@ -249,7 +251,7 @@ export default function App() {
 
       <div style={{ display: 'flex', flexDirection: 'row', gap: 16, maxWidth: 1400, margin: '0 auto', alignItems: 'flex-start' }}>
         {/* Left Sidebar */}
-        <div style={{ width: 300, flexShrink: 0 }}>
+        <div style={{ width: 300, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <Sidebar
             pitchers={pitchers}
             selectedPitcherId={selectedPitcherId}
@@ -258,6 +260,7 @@ export default function App() {
             onSelectPitcher={selectPitcher}
             onAddPitcher={addPitcher}
           />
+          <SummaryPanel pitches={pitches} currentGridMode={currentGridMode} selectedPitcherName={selectedPitcherName} onHighlightPitch={setHighlightedPitchId} highlightedPitchId={highlightedPitchId} />
         </div>
 
         {/* Center */}
@@ -277,6 +280,7 @@ export default function App() {
               exactTarget={exactTarget}
               isSettingTarget={isSettingTarget}
               onPitchClick={handlePitchClick}
+              highlightedPitchId={highlightedPitchId}
             />
           </div>
 
@@ -333,7 +337,6 @@ export default function App() {
             onClearExactTarget={() => { setExactTarget(null); setIsSettingTarget(false); }}
           />
           <CoachingNotes notes={currentSessionNotes} onAddNote={addNote} />
-          <SummaryPanel pitches={pitches} currentGridMode={currentGridMode} selectedPitcherName={selectedPitcherName} />
           <HistoryPanel sessions={sessions} onLoadSession={loadSession} onSearchSessions={searchSessions} isViewingPastSession={isViewingPastSession} onExitPastSession={exitPastSession} />
         </div>
       </div>

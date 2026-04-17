@@ -159,6 +159,7 @@ export default function StrikeZone({
   exactTarget,
   isSettingTarget,
   onPitchClick,
+  highlightedPitchId,
 }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
@@ -243,6 +244,8 @@ export default function StrikeZone({
           const pctX = (pitch.x / dimensions.width) * 100;
           const pctY = (pitch.y / dimensions.height) * 100;
 
+          const isHighlighted = highlightedPitchId != null && (pitch.id === highlightedPitchId || i === highlightedPitchId);
+
           return (
             <div
               key={pitch.id || i}
@@ -252,11 +255,13 @@ export default function StrikeZone({
                 top: `${pctY}%`,
                 width: dotSize,
                 height: dotSize,
+                boxShadow: isHighlighted ? '0 0 0 3px #fff, 0 0 0 5px #f59e0b' : undefined,
+                zIndex: isHighlighted ? 20 : undefined,
               }}
               onMouseEnter={() => setHoveredPitch(i)}
               onMouseLeave={() => setHoveredPitch(null)}
             >
-              {hoveredPitch === i && (
+              {(hoveredPitch === i || isHighlighted) && (
                 <div className="pitch-tooltip">
                   {pitch.type} • {pitch.speed} mph • {pitch.score}pts
                 </div>
