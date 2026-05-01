@@ -9,8 +9,11 @@ A web application for recording pitching sessions, tracking location accuracy, a
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
+- [Requirements](#requirements)
+- [Firebase Setup](#firebase-setup)
+- [Launching the App](#launching-the-app)
 - [Environment Variables](#environment-variables)
+- [How Data Persistence Works](#how-data-persistence-works)
 - [Offline Mode](#offline-mode)
 - [Strike Zone Model](#strike-zone-model)
 - [Scoring System](#scoring-system)
@@ -89,80 +92,140 @@ PitchCoachPro React/
 
 ---
 
-## Getting Started
+## Requirements
 
-### Prerequisites
+To run the app you need:
 
-- Node.js 18+
-- A Firebase project with Firestore enabled (or run without one in offline mode)
+- **Node.js 18+** — [nodejs.org](https://nodejs.org)
+- **Two terminal windows** — one for the backend, one for the frontend
+- **A Firebase project** (for data to persist across sessions) — or skip it to use offline/localStorage mode
 
-### 1. Install dependencies
+---
 
-```bash
-# Frontend
-cd pitching-coach/frontend
-npm install
+## Firebase Setup
 
-# Backend
-cd ../backend
-npm install
+Firebase is the cloud database that stores pitchers, sessions, and leaderboard data. Without it the app still works, but all data is lost when you close the browser.
+
+### 1. Create a Firebase project
+
+1. Go to [console.firebase.google.com](https://console.firebase.google.com)
+2. Click **Add project** and follow the prompts
+
+### 2. Enable Firestore
+
+1. In your project, go to **Build → Firestore Database**
+2. Click **Create database**
+3. Choose **Start in test mode** (allows all reads/writes for 30 days — fine for development)
+4. Pick a region and click **Done**
+
+### 3. Get service account credentials
+
+1. Go to **Project Settings** (gear icon, top left) → **Service accounts** tab
+2. Click **Generate new private key** → **Generate key**
+3. A `.json` file downloads — open it, you will need three values from it
+
+### 4. Create the backend `.env` file
+
+Create the file at `pitching-coach/backend/.env` and fill in the values from the downloaded JSON:
+
+```env
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"
+PORT=3001
 ```
 
-### 2. Configure environment (optional — skip to use offline mode)
+> **Important:** The `FIREBASE_PRIVATE_KEY` must be wrapped in double quotes and keep the literal `\n` characters exactly as they appear in the downloaded JSON file.
+
+> **Security:** Never commit `.env` to git. The `backend/.gitignore` already excludes it. Never share the private key — anyone with it has full write access to your database. If it is ever exposed, go back to Firebase → Service Accounts, delete the key, and generate a new one.
+
+### 5. Verify the connection
+
+When you start the backend (see below), you should see in the terminal:
+
+```
+[Firebase] Firestore connected
+Backend running on http://localhost:3001
+```
+
+If you see `[Firebase] No valid config — running in offline/mock mode`, the `.env` file is missing or the values are wrong. Make sure you are running `npm run dev` from inside the `pitching-coach/backend/` directory.
+
+---
+
+## Launching the App
+
+The app requires **two processes running at the same time** — the backend and the frontend. Open two terminal windows.
+
+### Terminal 1 — Backend
 
 ```bash
 cd pitching-coach/backend
-cp .env.example .env   # or create .env manually
+npm run dev
 ```
 
-See [Environment Variables](#environment-variables) below.
+Runs on `http://localhost:3001`. Keep this running — it is what talks to Firebase and persists all data.
 
-### 3. Start the backend
-
-```bash
-cd pitching-coach/backend
-npm run dev        # node --watch (auto-restarts on file changes)
-# or
-npm start          # production
-```
-
-Backend runs on `http://localhost:3001`.
-
-### 4. Start the frontend
+### Terminal 2 — Frontend
 
 ```bash
 cd pitching-coach/frontend
 npm run dev
 ```
 
-Frontend runs on `http://localhost:5173`. Vite proxies all `/api/*` requests to the backend.
+Runs on `http://localhost:5173`. Open this URL in your browser.
+
+### First time setup (install dependencies)
+
+If you have never run the project before, install dependencies first:
+
+```bash
+cd pitching-coach/frontend && npm install
+cd ../backend && npm install
+```
 
 ---
 
 ## Environment Variables
 
-Create `pitching-coach/backend/.env`:
+All environment variables go in `pitching-coach/backend/.env`. The frontend has no environment variables.
 
-```env
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=your-service-account@your-project.iam.gserviceaccount.com
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-PORT=3001
+| Variable | Required | Description |
+|---|---|---|
+| `FIREBASE_PROJECT_ID` | Yes (for persistence) | Your Firebase project ID |
+| `FIREBASE_CLIENT_EMAIL` | Yes (for persistence) | Service account email from the downloaded JSON |
+| `FIREBASE_PRIVATE_KEY` | Yes (for persistence) | Private key from the downloaded JSON, wrapped in double quotes |
+| `PORT` | No | Port for the backend (default: `3001`) |
+
+If any Firebase variable is missing, the backend starts in mock mode — the app still works but **nothing is saved to the database**.
+
+---
+
+## How Data Persistence Works
+
+All data lives in **Firebase Firestore** (Google's cloud database). The backend is the only thing that talks to Firestore directly — the frontend only ever talks to the backend.
+
+```
+Browser (frontend)  →  Backend (Express)  →  Firestore (Firebase cloud)
 ```
 
-Obtain `FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` from a Firebase service account JSON file (Firebase Console → Project Settings → Service Accounts → Generate new private key).
+Because data is stored in the cloud:
+- Closing the browser does **not** delete data
+- Stopping the frontend does **not** delete data
+- Restarting your computer does **not** delete data
+- Data is accessible from any machine that runs the backend with the same `.env`
 
-If any of the Firebase variables are missing or set to placeholder values, the backend starts in **offline/mock mode** — all routes return empty data and the frontend automatically falls back to localStorage.
+The only requirement for data to persist is that the **backend is running** when the frontend makes a request. The frontend checks Firebase status on startup — if the backend is unreachable or Firebase is not configured, it automatically falls back to offline mode.
 
 ---
 
 ## Offline Mode
 
-The frontend detects backend failure on startup and switches to offline mode automatically. In offline mode:
+If the backend is not running or Firebase is not configured, the app automatically switches to offline mode:
 
-- All data (pitchers, pitches, sessions, leaderboard) is persisted in `localStorage` keyed by a per-app ID
-- The status indicator in the top-left shows "Offline Mode" in amber
-- All features work identically — no backend required
+- The status indicator in the header shows **"Offline Mode"** in amber
+- All data is saved in the browser's `localStorage` instead of Firestore
+- All features work identically
+- Data persists across page refreshes but is **browser-local** — it won't be visible on another machine and will be lost if the browser storage is cleared
 
 ---
 
