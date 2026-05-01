@@ -1,5 +1,13 @@
 const BASE = '/api';
 
+export async function checkHealth() {
+  const res = await fetch(`${BASE}/health`);
+  if (!res.ok) throw new Error('Backend unreachable');
+  const data = await res.json();
+  if (!data.firebaseConfigured) throw new Error('Firebase not configured');
+  return data;
+}
+
 export async function fetchPitchers() {
   const res = await fetch(`${BASE}/pitchers`);
   if (!res.ok) throw new Error('Failed to fetch pitchers');

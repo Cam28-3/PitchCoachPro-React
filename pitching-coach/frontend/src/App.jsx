@@ -38,18 +38,23 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [highlightedPitchId, setHighlightedPitchId] = useState(null);
 
-  // Load pitchers on mount
+  // Load data on mount — health check first to confirm Firebase is actually connected
   useEffect(() => {
-    api.fetchPitchers()
-      .then(data => { setPitchers(data); setIsOnlineMode(true); })
+    api.checkHealth()
+      .then(() => {
+        setIsOnlineMode(true);
+        return Promise.all([
+          api.fetchPitchers().then(setPitchers),
+          api.fetchLeaderboard().then(setLeaderboard),
+          api.fetchSessions().then(setSessions),
+        ]);
+      })
       .catch(() => {
         setIsOnlineMode(false);
         setPitchers(getLocalData(APP_ID, 'pitchers') || []);
+        setLeaderboard(getLocalData(APP_ID, 'leaderboard') || []);
+        setSessions(getLocalData(APP_ID, 'sessions') || []);
       });
-
-    api.fetchLeaderboard()
-      .then(setLeaderboard)
-      .catch(() => setLeaderboard(getLocalData(APP_ID, 'leaderboard') || []));
   }, []);
 
   // Load pitches when pitcher changes

@@ -108,8 +108,7 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
   };
 
   return (
-    <div className="panel" id="summaryPanel">
-      <div ref={panelRef}>
+    <div className="panel" id="summaryPanel" ref={panelRef}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <p className="section-title" style={{ margin: 0 }}>Session Summary</p>
           <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#64748b' }}>
@@ -391,7 +390,6 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
             </div>
           </div>
         )}
-      </div>
 
       {totalPitches >= 3 && (
         <div style={{ marginTop: 12 }}>
@@ -399,6 +397,7 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
             className="btn btn-secondary"
             style={{ width: '100%', fontSize: 12 }}
             onClick={() => setShowFeedback(v => !v)}
+            data-html2canvas-ignore="true"
           >
             {showFeedback ? 'Hide Coaching Feedback' : 'Get Coaching Feedback'}
           </button>
@@ -436,6 +435,7 @@ export default function SummaryPanel({ pitches, currentGridMode, selectedPitcher
           className="btn btn-secondary"
           style={{ width: '100%', marginTop: 8, fontSize: 12 }}
           onClick={handleExportPDF}
+          data-html2canvas-ignore="true"
         >
           Export PDF
         </button>

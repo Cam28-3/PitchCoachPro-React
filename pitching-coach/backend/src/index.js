@@ -17,7 +17,7 @@ app.use('/api/pitchers', pitchersRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/leaderboard', leaderboardRouter);
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', firebaseConfigured: getIsConfigured() }));
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`));
