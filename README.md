@@ -11,6 +11,7 @@ A web application for recording pitching sessions, tracking location accuracy, a
 - [Project Structure](#project-structure)
 - [Requirements](#requirements)
 - [Firebase Setup](#firebase-setup)
+- [Replacing the Database (Project Handoff)](#replacing-the-database-project-handoff)
 - [Launching the App](#launching-the-app)
 - [Environment Variables](#environment-variables)
 - [How Data Persistence Works](#how-data-persistence-works)
@@ -149,6 +150,44 @@ Backend running on http://localhost:3001
 ```
 
 If you see `[Firebase] No valid config — running in offline/mock mode`, the `.env` file is missing or the values are wrong. Make sure you are running `npm run dev` from inside the `pitching-coach/backend/` directory.
+
+---
+
+## Replacing the Database (Project Handoff)
+
+If you are taking over this project and want to use your own Firebase account instead of the original owner's, follow these steps. **You do not need to touch any code** — only the `.env` file changes.
+
+### What is tied to the original owner's account
+
+- The **Firebase project** (and all stored data — pitchers, sessions, leaderboard)
+- The **service account credentials** in `pitching-coach/backend/.env`
+
+Everything else (all source code, frontend, backend logic) is completely portable and belongs to whoever has the repo.
+
+### Steps to switch to your own database
+
+1. **Create a new Firebase project** — follow [Firebase Setup](#firebase-setup) steps 1–3 above to get your own project ID, client email, and private key.
+
+2. **Replace the `.env` file** — open `pitching-coach/backend/.env` and swap in your own values:
+
+   ```env
+   FIREBASE_PROJECT_ID=your-new-project-id
+   FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-new-project.iam.gserviceaccount.com
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"
+   PORT=3001
+   ```
+
+3. **Enable Firestore** in your new project (Build → Firestore Database → Create database → Start in test mode).
+
+4. **Restart the backend** (`npm run dev` in `pitching-coach/backend/`). You should see `[Firebase] Firestore connected` — the app is now writing to your database.
+
+### What happens to the old data
+
+Old session and pitcher data stays in the original Firebase project. Your new database starts empty. If you need to migrate data, export it from the original Firestore console (Firebase → Firestore → **Export**) and import it into your new project — but for most handoffs, starting fresh is fine.
+
+### If you do not want Firebase at all
+
+Skip the `.env` file entirely. The app runs in **offline/localStorage mode** automatically — all features work, but data is browser-local only (see [Offline Mode](#offline-mode)).
 
 ---
 
