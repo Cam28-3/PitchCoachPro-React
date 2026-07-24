@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: pitchcoach-backend
+    runtime: node
+    rootDir: pitching-coach/backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: APP_ID
+        value: default-app-id

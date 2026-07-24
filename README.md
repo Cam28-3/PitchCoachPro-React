@@ -224,9 +224,34 @@ cd ../backend && npm install
 
 ---
 
+## Deployment
+
+The frontend and backend deploy separately since they're two different runtimes (static site vs. Node server).
+
+### Backend → Render
+
+1. Create a new **Web Service** on [Render](https://render.com), pointing at this repo. A [render.yaml](render.yaml) is included at the repo root for one-click config, or set manually:
+   - **Root directory**: `pitching-coach/backend`
+   - **Build command**: `npm install`
+   - **Start command**: `npm start`
+2. Set environment variables in the Render dashboard (`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, `FIREBASE_PRIVATE_KEY`, `ALLOWED_ORIGINS`) — see the table below. Omit the Firebase variables to run the deployed backend in mock mode (safe for a public demo — no real database needed).
+3. Note the resulting URL (e.g. `https://pitchcoach-backend.onrender.com`) — the frontend needs it.
+
+### Frontend → Vercel
+
+1. Create a new project on [Vercel](https://vercel.com), pointing at this repo.
+   - **Root directory**: `pitching-coach/frontend`
+   - Framework preset: Vite (auto-detected)
+2. Set the environment variable `VITE_API_URL` to the Render backend URL from above.
+3. Once deployed, go back to Render and set `ALLOWED_ORIGINS` to the Vercel URL (e.g. `https://pitchcoachpro.vercel.app`) so the backend's CORS policy accepts requests from it, then redeploy the backend.
+
+Note: `checkHealth()` in [api.js](pitching-coach/frontend/src/utils/api.js) makes the frontend fall back to offline/localStorage mode automatically if the backend is unreachable or unconfigured — so the app still works as a demo even without wiring up a live backend at all.
+
+---
+
 ## Environment Variables
 
-All environment variables go in `pitching-coach/backend/.env`. The frontend has no environment variables.
+### Backend (`pitching-coach/backend/.env`)
 
 | Variable | Required | Description |
 |---|---|---|
@@ -234,8 +259,15 @@ All environment variables go in `pitching-coach/backend/.env`. The frontend has 
 | `FIREBASE_CLIENT_EMAIL` | Yes (for persistence) | Service account email from the downloaded JSON |
 | `FIREBASE_PRIVATE_KEY` | Yes (for persistence) | Private key from the downloaded JSON, wrapped in double quotes |
 | `PORT` | No | Port for the backend (default: `3001`) |
+| `ALLOWED_ORIGINS` | No | Comma-separated list of origins allowed to call the API (default: `http://localhost:5173`) |
 
 If any Firebase variable is missing, the backend starts in mock mode — the app still works but **nothing is saved to the database**.
+
+### Frontend (`pitching-coach/frontend/.env`)
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_API_URL` | No | Base URL of the backend API. Leave blank for local dev (Vite proxies `/api` to `localhost:3001`). Set to the deployed backend's URL in production. |
 
 ---
 
